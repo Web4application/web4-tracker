@@ -1,7 +1,5 @@
-from zipfile import ZipFile
-
-# Updated project files with GPT and WebLLM setup, placeholders for saving/sync logic
-project_files = {
+# Updated project files with local AI integration using WebLLM
+project_files_local_ai = {
     "index.html": """
 <!DOCTYPE html>
 <html lang="en">
@@ -19,18 +17,18 @@ project_files = {
   <button onclick="saveToLocal()">Save Locally</button>
   <button onclick="toggleAI()">Toggle AI Mode (Online / Offline)</button>
 
-
   <pre id="output"></pre>
 
-  <script src="https://mlc.ai/web-llm/dist/index.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://unpkg.com/localforage/dist/localforage.min.js"></script>
+  <script src="https://mlc.ai/web-llm/dist/index.js"></script>
   <script src="assistant.js"></script>
 </body>
 </html>
 """,
     "assistant.js": """
 let projectFiles = [];
+let isOnlineAI = true;  // Flag to toggle between online/offline AI
 
 document.getElementById('fileInput').addEventListener('change', (e) => {
   const files = e.target.files;
@@ -49,7 +47,9 @@ document.getElementById('fileInput').addEventListener('change', (e) => {
 
 async function runAIRefactor() {
   for (let i = 0; i < projectFiles.length; i++) {
-    const refactored = await realAIRefactor(projectFiles[i].code);
+    const refactored = isOnlineAI ? 
+      await realAIRefactor(projectFiles[i].code) : 
+      await localAIRefactor(projectFiles[i].code);
     projectFiles[i].code = refactored;
     projectFiles[i].status = 'refactored';
   }
@@ -73,6 +73,18 @@ async function realAIRefactor(code) {
   });
   const data = await response.json();
   return data.choices[0].message.content.trim();
+}
+
+async function localAIRefactor(code) {
+  const chat = await webllm.createChat();
+  await chat.reload("Llama-3-8B-Instruct"); // Load Llama model
+  const reply = await chat.generate("Refactor and optimize this code:\n" + code);
+  return reply;
+}
+
+function toggleAI() {
+  isOnlineAI = !isOnlineAI;
+  alert(isOnlineAI ? 'Switched to Online AI (GPT)' : 'Switched to Offline AI (WebLLM)');
 }
 
 function displayOutput() {
@@ -112,10 +124,10 @@ function loadFromLocalStorage() {
 """
 }
 
-# Write files to a zip archive
-zip_path = "/mnt/data/web4_ai_project_assistant_full.zip"
-with ZipFile(zip_path, 'w') as zipf:
-    for filename, content in project_files.items():
+# Create a zip file with the new content
+zip_path_local_ai = "/mnt/data/web4_ai_project_assistant_local_ai.zip"
+with ZipFile(zip_path_local_ai, 'w') as zipf:
+    for filename, content in project_files_local_ai.items():
         zipf.writestr(filename, content)
 
-zip_path
+zip_path_local_ai
