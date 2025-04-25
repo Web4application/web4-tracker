@@ -1,0 +1,119 @@
+from zipfile import ZipFile
+
+# Updated project files with GPT and WebLLM setup, placeholders for saving/sync logic
+project_files = {
+    "index.html": """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Web4 AI Project Assistant</title>
+</head>
+<body>
+  <h1>Web4 AI Project Assistant</h1>
+
+  <input type="file" id="fileInput" multiple><br><br>
+  <button onclick="loadFromLocalStorage()">Load from LocalStorage</button>
+  <button onclick="runAIRefactor()">AI Refactor + Organize</button>
+  <button onclick="downloadProject()">Download Project</button>
+  <button onclick="saveToLocal()">Save Locally</button>
+
+  <pre id="output"></pre>
+
+  <script src="https://mlc.ai/web-llm/dist/index.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://unpkg.com/localforage/dist/localforage.min.js"></script>
+  <script src="assistant.js"></script>
+</body>
+</html>
+""",
+    "assistant.js": """
+let projectFiles = [];
+
+document.getElementById('fileInput').addEventListener('change', (e) => {
+  const files = e.target.files;
+  for (const file of files) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      projectFiles.push({
+        name: file.name,
+        code: e.target.result
+      });
+      displayOutput();
+    };
+    reader.readAsText(file);
+  }
+});
+
+async function runAIRefactor() {
+  for (let i = 0; i < projectFiles.length; i++) {
+    const refactored = await realAIRefactor(projectFiles[i].code);
+    projectFiles[i].code = refactored;
+    projectFiles[i].status = 'refactored';
+  }
+  displayOutput();
+}
+
+async function realAIRefactor(code) {
+  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer YOUR_OPENAI_KEY_HERE',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: 'gpt-4',
+      messages: [
+        { role: 'system', content: 'You are a senior developer.' },
+        { role: 'user', content: 'Refactor and optimize this code:\\n\\n' + code }
+      ]
+    })
+  });
+  const data = await response.json();
+  return data.choices[0].message.content.trim();
+}
+
+function displayOutput() {
+  const output = document.getElementById('output');
+  output.textContent = projectFiles.map(f => `// ${f.name}\\n${f.code}\\n`).join('\\n\\n');
+}
+
+function downloadProject() {
+  const zip = new JSZip();
+  projectFiles.forEach(file => {
+    zip.file(file.name, file.code);
+  });
+  zip.generateAsync({ type: "blob" }).then(content => {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(content);
+    a.download = "refactored_project.zip";
+    a.click();
+  });
+}
+
+function saveToLocal() {
+  localforage.setItem('my_project_files', projectFiles).then(() => {
+    alert('Saved locally!');
+  });
+}
+
+function loadFromLocalStorage() {
+  localforage.getItem('my_project_files').then(data => {
+    if (data) {
+      projectFiles = data;
+      displayOutput();
+    } else {
+      alert('No saved project found.');
+    }
+  });
+}
+"""
+}
+
+# Write files to a zip archive
+zip_path = "/mnt/data/web4_ai_project_assistant_full.zip"
+with ZipFile(zip_path, 'w') as zipf:
+    for filename, content in project_files.items():
+        zipf.writestr(filename, content)
+
+zip_path
